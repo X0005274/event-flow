@@ -6,9 +6,9 @@ package com.mes.event.exception;
  * <p>{@link java.sql.SQLException} 을 그대로 상위로 던지지 않고
  * 실패한 SQL / 키 등 컨텍스트를 메시지에 담아 추적성을 확보한다.
  */
-public class SqlException extends RuntimeException {
+public class DbAccessException extends RuntimeException {
 
-    public SqlException(String message, Throwable cause) {
+    public DbAccessException(String message, Throwable cause) {
         super(message, cause);
     }
 }

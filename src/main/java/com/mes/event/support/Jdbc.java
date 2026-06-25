@@ -1,6 +1,6 @@
 package com.mes.event.support;
 
-import com.mes.event.exception.SqlException;
+import com.mes.event.exception.DbAccessException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -57,7 +57,7 @@ public final class Jdbc {
             return ps.executeUpdate();
         } catch (SQLException e) {
             // SQLException 을 그대로 던지지 않고, 실패한 SQL 을 메시지에 담아 추적하기 쉽게 만든다.
-            throw new SqlException("SQL 실행 실패: " + sql, e);
+            throw new DbAccessException("SQL 실행 실패: " + sql, e);
         }
     }
 
@@ -78,7 +78,7 @@ public final class Jdbc {
                 return rs.next(); // 결과 행이 하나라도 있으면 존재함
             }
         } catch (SQLException e) {
-            throw new SqlException("존재 여부 조회 실패: " + sql + " (key=" + key + ")", e);
+            throw new DbAccessException("존재 여부 조회 실패: " + sql + " (key=" + key + ")", e);
         }
     }
 
