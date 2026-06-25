@@ -15,8 +15,17 @@ import java.sql.Connection;
  *   <li><b>{@link #dispatch}</b> - 이 모듈이 트랜잭션을 직접 관리(내장 {@link TransactionManager} 사용).
  *       독립 실행/단순 연동에 적합.</li>
  *   <li><b>{@link #dispatchWithin}</b> - 기존 MES 가 이미 연 커넥션/트랜잭션에 합류.
- *       commit/rollback 은 기존 시스템이 수행. 한 트랜잭션에 여러 작업을 묶을 때 사용.</li>
+ *       commit/rollback 은 기존 시스템이 수행.</li>
  * </ul>
+ *
+ * <p>두 메서드 모두 이벤트를 가변인자로 받는다. 1건이면 단일 처리, 여러 건이면 입력 순서대로
+ * <b>한 트랜잭션 안에서</b> 복합 처리된다(하나라도 실패하면 전체 롤백). 이벤트마다 타입에 맞는
+ * 프로세서를 {@link EventProcessorFactory} 가 찾아 실행하므로, 서로 다른 종류를 섞어 묶어도 된다.
+ *
+ * <pre>{@code
+ * dispatcher.dispatch(lotEvent);                          // 단일
+ * dispatcher.dispatch(lotEvent, waferEvent, durableEvent); // 복합(한 트랜잭션)
+ * }</pre>
  */
 public final class EventDispatcher {
 
@@ -37,22 +46,30 @@ public final class EventDispatcher {
     }
 
     /**
-     * 새 트랜잭션을 열어 이벤트를 처리한다(commit/rollback 포함).
+     * 새 트랜잭션을 열어 이벤트(1건 이상)를 입력 순서대로 처리한다(commit/rollback 포함).
+     * 하나라도 실패하면 전체 롤백된다.
      */
-    public <E extends MesEvent> void dispatch(E event) {
+    public void dispatch(MesEvent... events) {
         if (transactionManager == null) {
             throw new IllegalStateException(
-                    "TransactionManager not configured. Use dispatchWithin(conn, event) "
+                    "TransactionManager not configured. Use dispatchWithin(conn, events) "
                             + "to join an existing transaction.");
         }
-        transactionManager.executeInTransaction(conn -> dispatchWithin(conn, event));
+        transactionManager.executeInTransaction(conn -> dispatchWithin(conn, events));
     }
 
     /**
-     * 외부에서 주입된 커넥션(=기존 트랜잭션)으로 이벤트를 처리한다. commit/rollback 은 호출자 책임.
+     * 외부에서 주입된 커넥션(=기존 트랜잭션)으로 이벤트(1건 이상)를 입력 순서대로 처리한다.
+     * commit/rollback 은 호출자 책임이며, 묶인 이벤트는 같은 트랜잭션에서 처리된다.
      */
-    public <E extends MesEvent> void dispatchWithin(Connection conn, E event) {
-        EventProcessor<E> processor = factory.resolve(event.eventType());
+    public void dispatchWithin(Connection conn, MesEvent... events) {
+        for (MesEvent event : events) {
+            dispatchOne(conn, event);
+        }
+    }
+
+    private void dispatchOne(Connection conn, MesEvent event) {
+        EventProcessor<MesEvent> processor = factory.resolve(event.eventType());
         long startedAt = System.nanoTime();
         try {
             processor.process(conn, event);
