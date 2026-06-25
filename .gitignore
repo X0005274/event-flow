@@ -1,0 +1,18 @@
+# Build output
+out/
+build/
+target/
+bin/
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# OS / temp
+sources.txt
+*.log
